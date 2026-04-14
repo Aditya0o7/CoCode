@@ -1,4 +1,4 @@
-import { DrawingData } from "@/types/app"
+import { DrawingData, RoomActivity } from "@/types/app"
 import {
     SocketContext as SocketContextType,
     SocketEvent,
@@ -31,12 +31,14 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000"
 
 const SocketProvider = ({ children }: { children: ReactNode }) => {
     const {
+        currentUser,
         users,
         setUsers,
         setStatus,
         setCurrentUser,
         drawingData,
         setDrawingData,
+        setRoomActivity,
     } = useAppContext()
     const socket: Socket = useMemo(
         () =>
@@ -67,16 +69,24 @@ const SocketProvider = ({ children }: { children: ReactNode }) => {
 
     const handleJoiningAccept = useCallback(
         ({ user, users }: { user: User; users: RemoteUser[] }) => {
-            setCurrentUser(user)
+            setCurrentUser({ ...user, template: currentUser.template })
             setUsers(users)
             toast.dismiss()
             setStatus(USER_STATUS.JOINED)
+            socket.emit(SocketEvent.REQUEST_ROOM_ACTIVITY)
 
             if (users.length > 1) {
                 toast.loading("Syncing data, please wait...")
             }
         },
-        [setCurrentUser, setStatus, setUsers],
+        [currentUser.template, setCurrentUser, setStatus, setUsers, socket],
+    )
+
+    const handleRoomActivity = useCallback(
+        ({ activity }: { activity: RoomActivity[] }) => {
+            setRoomActivity(activity)
+        },
+        [setRoomActivity],
     )
 
     const handleUserLeft = useCallback(
@@ -109,6 +119,7 @@ const SocketProvider = ({ children }: { children: ReactNode }) => {
         socket.on(SocketEvent.USER_DISCONNECTED, handleUserLeft)
         socket.on(SocketEvent.REQUEST_DRAWING, handleRequestDrawing)
         socket.on(SocketEvent.SYNC_DRAWING, handleDrawingSync)
+        socket.on(SocketEvent.ROOM_ACTIVITY, handleRoomActivity)
 
         return () => {
             socket.off("connect_error")
@@ -118,11 +129,13 @@ const SocketProvider = ({ children }: { children: ReactNode }) => {
             socket.off(SocketEvent.USER_DISCONNECTED)
             socket.off(SocketEvent.REQUEST_DRAWING)
             socket.off(SocketEvent.SYNC_DRAWING)
+            socket.off(SocketEvent.ROOM_ACTIVITY)
         }
     }, [
         handleDrawingSync,
         handleError,
         handleJoiningAccept,
+        handleRoomActivity,
         handleRequestDrawing,
         handleUserLeft,
         handleUsernameExist,

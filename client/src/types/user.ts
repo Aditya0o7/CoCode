@@ -3,16 +3,19 @@ enum USER_CONNECTION_STATUS {
     ONLINE = "online",
 }
 
+type RoomTemplate = "blank" | "frontend" | "interview"
+
 interface User {
     username: string
     roomId: string
+    template?: RoomTemplate
 }
 
 interface RemoteUser extends User {
     status: USER_CONNECTION_STATUS
     cursorPosition: number
     typing: boolean
-    currentFile: string
+    currentFile: string | null
     socketId: string
 }
 
@@ -25,4 +28,4 @@ enum USER_STATUS {
     DISCONNECTED = "disconnected",
 }
 
-export { USER_CONNECTION_STATUS, USER_STATUS, RemoteUser, User }
+export { USER_CONNECTION_STATUS, USER_STATUS, RemoteUser, RoomTemplate, User }

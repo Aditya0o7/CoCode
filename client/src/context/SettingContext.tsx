@@ -25,7 +25,6 @@ export const useSettings = (): SettingsContextType => {
 
 const defaultSettings: Settings = {
     theme: "Dracula",
-    language: "Javascript",
     fontSize: 16,
     fontFamily: "Space Mono",
     showGitHubCorner: true,
@@ -40,10 +39,6 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
         storedSettings.theme !== undefined
             ? storedSettings.theme
             : defaultSettings.theme
-    const storedLanguage =
-        storedSettings.language !== undefined
-            ? storedSettings.language
-            : defaultSettings.language
     const storedFontSize =
         storedSettings.fontSize !== undefined
             ? storedSettings.fontSize
@@ -58,7 +53,6 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
             : defaultSettings.showGitHubCorner
 
     const [theme, setTheme] = useState<string>(storedTheme)
-    const [language, setLanguage] = useState<string>(storedLanguage)
     const [fontSize, setFontSize] = useState<number>(storedFontSize)
     const [fontFamily, setFontFamily] = useState<string>(storedFontFamily)
     const [showGitHubCorner, setShowGitHubCorner] = useState<boolean>(
@@ -67,7 +61,6 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
 
     const resetSettings = () => {
         setTheme(defaultSettings.theme)
-        setLanguage(defaultSettings.language)
         setFontSize(defaultSettings.fontSize)
         setFontFamily(defaultSettings.fontFamily)
         setShowGitHubCorner(defaultSettings.showGitHubCorner)
@@ -77,21 +70,18 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
         // Save settings to local storage whenever they change
         const updatedSettings = {
             theme,
-            language,
             fontSize,
             fontFamily,
             showGitHubCorner,
         }
         localStorage.setItem("settings", JSON.stringify(updatedSettings))
-    }, [theme, language, fontSize, fontFamily, showGitHubCorner])
+    }, [theme, fontSize, fontFamily, showGitHubCorner])
 
     return (
         <SettingContext.Provider
             value={{
                 theme,
                 setTheme,
-                language,
-                setLanguage,
                 fontSize,
                 setFontSize,
                 fontFamily,

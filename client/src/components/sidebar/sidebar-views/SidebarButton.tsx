@@ -30,7 +30,7 @@ const ViewButton = ({ viewName, icon }: ViewButtonProps) => {
             <button
                 onClick={() => handleViewClick(viewName)}
                 onMouseEnter={() => setShowTooltip(true)} // Show tooltip again on hover
-                className={`${buttonStyles.base} ${buttonStyles.hover}`}
+                className={`${buttonStyles.base} ${buttonStyles.hover} ${activeView === viewName && isSidebarOpen ? "bg-blue-400/25 text-cyan-200 ring-1 ring-blue-300/50" : "text-slate-200"}`}
                 {...(showTooltip && {
                     "data-tooltip-id": `tooltip-${viewName}`,
                     "data-tooltip-content": viewName,
@@ -48,7 +48,7 @@ const ViewButton = ({ viewName, icon }: ViewButtonProps) => {
                     id={`tooltip-${viewName}`}
                     place="right"
                     offset={25}
-                    className="!z-50"
+                    className="!z-[9999]"
                     style={tooltipStyles}
                     noArrow={false}
                     positionStrategy="fixed"

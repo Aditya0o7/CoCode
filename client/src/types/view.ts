@@ -1,5 +1,8 @@
 enum VIEWS {
     FILES = "FILES",
+    SEARCH = "SEARCH",
+    HISTORY = "HISTORY",
+    ACTIVITY = "ACTIVITY",
     CHATS = "CHATS",
     CLIENTS = "CLIENTS",
     RUN = "RUN",

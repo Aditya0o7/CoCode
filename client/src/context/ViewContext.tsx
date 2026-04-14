@@ -1,15 +1,19 @@
 import ChatsView from "@/components/sidebar/sidebar-views/ChatsView"
 import CopilotView from "@/components/sidebar/sidebar-views/CopilotView"
 import FilesView from "@/components/sidebar/sidebar-views/FilesView"
+import HistoryView from "@/components/sidebar/sidebar-views/HistoryView"
 import RunView from "@/components/sidebar/sidebar-views/RunView"
+import SearchView from "@/components/sidebar/sidebar-views/SearchView"
 import SettingsView from "@/components/sidebar/sidebar-views/SettingsView"
+import ActivityView from "@/components/sidebar/sidebar-views/ActivityView"
 import UsersView from "@/components/sidebar/sidebar-views/UsersView"
 import useWindowDimensions from "@/hooks/useWindowDimensions"
 import { VIEWS, ViewContext as ViewContextType } from "@/types/view"
 import { ReactNode, createContext, useContext, useState } from "react"
 import { IoSettingsOutline } from "react-icons/io5"
-import { LuFiles, LuSparkles } from "react-icons/lu"
+import { LuFiles, LuHistory, LuSearch, LuSparkles } from "react-icons/lu"
 import { PiChats, PiPlay, PiUsers } from "react-icons/pi"
+import { MdOutlineTimeline } from "react-icons/md"
 
 const ViewContext = createContext<ViewContextType | null>(null)
 
@@ -27,6 +31,9 @@ function ViewContextProvider({ children }: { children: ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(!isMobile)
     const [viewComponents] = useState({
         [VIEWS.FILES]: <FilesView />,
+        [VIEWS.SEARCH]: <SearchView />,
+        [VIEWS.HISTORY]: <HistoryView />,
+        [VIEWS.ACTIVITY]: <ActivityView />,
         [VIEWS.CLIENTS]: <UsersView />,
         [VIEWS.SETTINGS]: <SettingsView />,
         [VIEWS.COPILOT]: <CopilotView />,
@@ -35,6 +42,9 @@ function ViewContextProvider({ children }: { children: ReactNode }) {
     })
     const [viewIcons] = useState({
         [VIEWS.FILES]: <LuFiles size={28} />,
+        [VIEWS.SEARCH]: <LuSearch size={28} />,
+        [VIEWS.HISTORY]: <LuHistory size={28} />,
+        [VIEWS.ACTIVITY]: <MdOutlineTimeline size={28} />,
         [VIEWS.CLIENTS]: <PiUsers size={30} />,
         [VIEWS.SETTINGS]: <IoSettingsOutline size={28} />,
         [VIEWS.CHATS]: <PiChats size={30} />,

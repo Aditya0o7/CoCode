@@ -7,6 +7,7 @@ import { ACTIVITY_STATE } from "@/types/app"
 import { FileSystemItem, Id } from "@/types/file"
 import { sortFileSystemItem } from "@/utils/file"
 import { getIconClassName } from "@/utils/getIconClassName"
+import { ConfirmModal, PromptModal } from "@/components/common/Modal"
 import { Icon } from "@iconify/react"
 import cn from "classnames"
 import { MouseEvent, useEffect, useRef, useState } from "react"
@@ -26,6 +27,9 @@ function FileStructureView() {
         useFileSystem()
     const explorerRef = useRef<HTMLDivElement | null>(null)
     const [selectedDirId, setSelectedDirId] = useState<Id | null>(null)
+    const [createModalType, setCreateModalType] = useState<
+        "file" | "directory" | null
+    >(null)
     const { minHeightReached } = useResponsive()
 
     const handleClickOutside = (e: MouseEvent) => {
@@ -38,19 +42,23 @@ function FileStructureView() {
     }
 
     const handleCreateFile = () => {
-        const fileName = prompt("Enter file name")
-        if (fileName) {
-            const parentDirId: Id = selectedDirId || fileStructure.id
-            createFile(parentDirId, fileName)
-        }
+        setCreateModalType("file")
     }
 
     const handleCreateDirectory = () => {
-        const dirName = prompt("Enter directory name")
-        if (dirName) {
-            const parentDirId: Id = selectedDirId || fileStructure.id
-            createDirectory(parentDirId, dirName)
+        setCreateModalType("directory")
+    }
+
+    const handleCreateSubmit = (name: string) => {
+        const parentDirId: Id = selectedDirId || fileStructure.id
+
+        if (createModalType === "file") {
+            createFile(parentDirId, name)
+        } else if (createModalType === "directory") {
+            createDirectory(parentDirId, name)
         }
+
+        setCreateModalType(null)
     }
 
     const sortedFileStructure = sortFileSystemItem(fileStructure)
@@ -102,6 +110,28 @@ function FileStructureView() {
                         />
                     ))}
             </div>
+
+            <PromptModal
+                isOpen={createModalType !== null}
+                title={
+                    createModalType === "file"
+                        ? "Create New File"
+                        : "Create New Folder"
+                }
+                message={
+                    createModalType === "file"
+                        ? "Enter a name with extension, for example main.js or app.cpp"
+                        : "Enter a folder name"
+                }
+                placeholder={
+                    createModalType === "file" ? "example.tsx" : "new-folder"
+                }
+                submitText={
+                    createModalType === "file" ? "Create File" : "Create Folder"
+                }
+                onSubmit={handleCreateSubmit}
+                onClose={() => setCreateModalType(null)}
+            />
         </div>
     )
 }
@@ -114,6 +144,7 @@ function Directory({
     setSelectedDirId: (id: Id) => void
 }) {
     const [isEditing, setEditing] = useState<boolean>(false)
+    const [isDeleteModalOpen, setDeleteModalOpen] = useState(false)
     const dirRef = useRef<HTMLDivElement | null>(null)
     const { coords, menuOpen, setMenuOpen } = useContextMenu({
         ref: dirRef,
@@ -134,12 +165,8 @@ function Directory({
     const handleDeleteDirectory = (e: MouseEvent, id: Id) => {
         e.stopPropagation()
         setMenuOpen(false)
-        const isConfirmed = confirm(
-            `Are you sure you want to delete directory?`,
-        )
-        if (isConfirmed) {
-            deleteDirectory(id)
-        }
+        void id
+        setDeleteModalOpen(true)
     }
 
     // Add F2 key event listener to directory for renaming
@@ -222,6 +249,18 @@ function Directory({
                     top={coords.y}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={isDeleteModalOpen}
+                title="Delete Folder"
+                message={`Delete \"${item.name}\" and all of its contents?`}
+                confirmText="Delete"
+                onConfirm={() => {
+                    deleteDirectory(item.id)
+                    setDeleteModalOpen(false)
+                }}
+                onClose={() => setDeleteModalOpen(false)}
+            />
         </div>
     )
 }
@@ -235,6 +274,7 @@ const File = ({
 }) => {
     const { deleteFile, openFile } = useFileSystem()
     const [isEditing, setEditing] = useState<boolean>(false)
+    const [isDeleteModalOpen, setDeleteModalOpen] = useState(false)
     const { setIsSidebarOpen } = useViews()
     const { isMobile } = useWindowDimensions()
     const { activityState, setActivityState } = useAppContext()
@@ -265,10 +305,8 @@ const File = ({
     const handleDeleteFile = (e: MouseEvent, id: Id) => {
         e.stopPropagation()
         setMenuOpen(false)
-        const isConfirmed = confirm(`Are you sure you want to delete file?`)
-        if (isConfirmed) {
-            deleteFile(id)
-        }
+        void id
+        setDeleteModalOpen(true)
     }
 
     // Add F2 key event listener to file for renaming
@@ -330,6 +368,18 @@ const File = ({
                     handleDeleteFile={handleDeleteFile}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={isDeleteModalOpen}
+                title="Delete File"
+                message={`Delete \"${item.name}\"?`}
+                confirmText="Delete"
+                onConfirm={() => {
+                    deleteFile(item.id)
+                    setDeleteModalOpen(false)
+                }}
+                onClose={() => setDeleteModalOpen(false)}
+            />
         </div>
     )
 }
@@ -349,7 +399,7 @@ const FileMenu = ({
 }) => {
     return (
         <div
-            className="absolute z-10 w-[150px] rounded-md border border-dark Hover bg-dark p-1"
+            className="Hover absolute z-10 w-[150px] rounded-md border border-dark bg-dark p-1"
             style={{
                 top,
                 left,

@@ -1,11 +1,15 @@
 import { useAppContext } from "@/context/AppContext"
 import { useSocket } from "@/context/SocketContext"
 import { SocketEvent } from "@/types/socket"
-import { USER_STATUS } from "@/types/user"
-import { ChangeEvent, FormEvent, useEffect, useRef } from "react"
+import { RoomTemplate, USER_STATUS } from "@/types/user"
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react"
 import { toast } from "react-hot-toast"
 import { useLocation, useNavigate } from "react-router-dom"
 import { v4 as uuidv4 } from "uuid"
+import { motion } from "framer-motion"
+import Select from "@/components/common/Select"
+
+const ROOM_TEMPLATES: RoomTemplate[] = ["blank", "frontend", "interview"]
 
 const FormComponent = () => {
     const location = useLocation()
@@ -14,9 +18,17 @@ const FormComponent = () => {
 
     const usernameRef = useRef<HTMLInputElement | null>(null)
     const navigate = useNavigate()
+    const generatedRoomRef = useRef(false)
+    const [selectedTemplate, setSelectedTemplate] =
+        useState<RoomTemplate>("blank")
 
     const createNewRoomId = () => {
-        setCurrentUser({ ...currentUser, roomId: uuidv4() })
+        generatedRoomRef.current = true
+        setCurrentUser({
+            ...currentUser,
+            roomId: uuidv4(),
+            template: selectedTemplate,
+        })
         toast.success("Created a new Room Id")
         usernameRef.current?.focus()
     }
@@ -24,7 +36,10 @@ const FormComponent = () => {
     const handleInputChanges = (e: ChangeEvent<HTMLInputElement>) => {
         const name = e.target.name
         const value = e.target.value
-        setCurrentUser({ ...currentUser, [name]: value })
+        if (name === "roomId") {
+            generatedRoomRef.current = false
+        }
+        setCurrentUser({ ...currentUser, [name]: value, template: undefined })
     }
 
     const validateForm = () => {
@@ -50,7 +65,12 @@ const FormComponent = () => {
         if (!validateForm()) return
         toast.loading("Joining room...")
         setStatus(USER_STATUS.ATTEMPTING_JOIN)
-        socket.emit(SocketEvent.JOIN_REQUEST, currentUser)
+        const joinPayload = {
+            ...currentUser,
+            template: generatedRoomRef.current ? selectedTemplate : undefined,
+        }
+        setCurrentUser(joinPayload)
+        socket.emit(SocketEvent.JOIN_REQUEST, joinPayload)
     }
 
     useEffect(() => {
@@ -85,50 +105,82 @@ const FormComponent = () => {
             socket.disconnect()
             socket.connect()
         }
-    }, [currentUser, location.state?.redirect, navigate, setStatus, socket, status])
+    }, [
+        currentUser,
+        location.state?.redirect,
+        navigate,
+        setStatus,
+        socket,
+        status,
+    ])
 
     return (
-        <div className="flex w-full max-w-[500px] flex-col items-center justify-center gap-4 p-4 sm:w-[500px] sm:p-8">
-           <div className="flex flex-row items-center">
-                <img src="./icon.png" alt="logo" style={{ height: "3rem" }} />
-                <p className="ml-2">
-                    <span className="text-blue-500" style={{ fontSize: "3rem" }}>CoCode</span> . code together
-                </p>
+        <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="glass-panel flex w-full max-w-[520px] flex-col gap-5 p-5 sm:p-7"
+        >
+            <div className="flex items-center gap-3">
+                <img
+                    src="./icon.png"
+                    alt="logo"
+                    className="h-12 w-12 rounded-xl"
+                />
+                <div>
+                    <p className="text-3xl font-black leading-none text-blue-300">
+                        CoCode
+                    </p>
+                    <p className="mt-1 text-sm text-slate-300">code together</p>
                 </div>
+            </div>
 
-           
-            <form onSubmit={joinRoom} className="flex w-full flex-col gap-4">
+            <form onSubmit={joinRoom} className="flex w-full flex-col gap-3">
+                <Select
+                    onChange={(e) =>
+                        setSelectedTemplate(e.target.value as RoomTemplate)
+                    }
+                    value={selectedTemplate}
+                    options={ROOM_TEMPLATES}
+                    title="Starter Template"
+                />
+                <label className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                    Room Id
+                </label>
                 <input
                     type="text"
                     name="roomId"
                     placeholder="Room Id"
-                    className="w-full rounded-md border border-blue-500 bg-blue-950 Hover px-3 py-3 focus:outline-none"
+                    className="input-modern"
                     onChange={handleInputChanges}
                     value={currentUser.roomId}
                 />
+                <label className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">
+                    Username
+                </label>
                 <input
                     type="text"
                     name="username"
                     placeholder="Username"
-                    className="w-full rounded-md border border-blue-500 bg-blue-950 Hover px-3 py-3 focus:outline-none"
+                    className="input-modern"
                     onChange={handleInputChanges}
                     value={currentUser.username}
                     ref={usernameRef}
                 />
                 <button
                     type="submit"
-                    className="mt-2 w-full rounded-md bg-blue-500  px-8 py-3 text-lg font-semibold text-white"
+                    className="btn-primary mt-3 w-full py-3 text-lg"
                 >
                     Join
                 </button>
             </form>
             <button
-                className="cursor-pointer select-none underline"
+                className="self-start text-sm text-cyan-300 underline-offset-4 transition hover:text-cyan-200 hover:underline"
                 onClick={createNewRoomId}
             >
                 Generate Unique Room Id
             </button>
-        </div>
+        </motion.div>
     )
 }
 

@@ -8,6 +8,15 @@ enum ACTIVITY_STATE {
     DRAWING = "drawing",
 }
 
+interface RoomActivity {
+    id: string
+    roomId: string
+    type: string
+    message: string
+    username: string
+    timestamp: string
+}
+
 interface AppContext {
     users: RemoteUser[]
     setUsers: (
@@ -21,7 +30,11 @@ interface AppContext {
     setActivityState: (state: ACTIVITY_STATE) => void
     drawingData: DrawingData
     setDrawingData: (data: DrawingData) => void
+    roomActivity: RoomActivity[]
+    setRoomActivity: (
+        activity: RoomActivity[] | ((activity: RoomActivity[]) => RoomActivity[]),
+    ) => void
 }
 
 export { ACTIVITY_STATE }
-export { AppContext, DrawingData }
+export { AppContext, DrawingData, RoomActivity }

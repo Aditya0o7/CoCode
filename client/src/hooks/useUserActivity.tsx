@@ -64,6 +64,20 @@ function useUserActivity() {
         [setUsers],
     )
 
+    const handleCurrentFileChanged = useCallback(
+        ({ user }: { user: RemoteUser }) => {
+            setUsers((users) => {
+                return users.map((u) => {
+                    if (u.socketId === user.socketId) {
+                        return user
+                    }
+                    return u
+                })
+            })
+        },
+        [setUsers],
+    )
+
     useEffect(() => {
         document.addEventListener(
             "visibilitychange",
@@ -74,6 +88,7 @@ function useUserActivity() {
         socket.on(SocketEvent.USER_OFFLINE, handleUserOffline)
         socket.on(SocketEvent.TYPING_START, handleUserTyping)
         socket.on(SocketEvent.TYPING_PAUSE, handleUserTyping)
+        socket.on(SocketEvent.CURRENT_FILE_CHANGED, handleCurrentFileChanged)
 
         return () => {
             document.removeEventListener(
@@ -85,6 +100,7 @@ function useUserActivity() {
             socket.off(SocketEvent.USER_OFFLINE)
             socket.off(SocketEvent.TYPING_START)
             socket.off(SocketEvent.TYPING_PAUSE)
+            socket.off(SocketEvent.CURRENT_FILE_CHANGED)
         }
     }, [
         socket,
@@ -93,6 +109,7 @@ function useUserActivity() {
         handleUserOnline,
         handleUserOffline,
         handleUserTyping,
+        handleCurrentFileChanged,
     ])
 }
 

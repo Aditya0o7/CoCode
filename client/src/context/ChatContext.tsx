@@ -1,4 +1,8 @@
-import { ChatContext as ChatContextType, ChatMessage } from "@/types/chat"
+import {
+    ChatContext as ChatContextType,
+    ChatMessage,
+    PinnedNote,
+} from "@/types/chat"
 import { SocketEvent } from "@/types/socket"
 import {
     ReactNode,
@@ -24,6 +28,7 @@ function ChatContextProvider({ children }: { children: ReactNode }) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [isNewMessage, setIsNewMessage] = useState<boolean>(false)
     const [lastScrollHeight, setLastScrollHeight] = useState<number>(0)
+    const [pinnedNote, setPinnedNote] = useState<PinnedNote | null>(null)
 
     useEffect(() => {
         socket.on(
@@ -33,8 +38,19 @@ function ChatContextProvider({ children }: { children: ReactNode }) {
                 setIsNewMessage(true)
             },
         )
+
+        socket.on(SocketEvent.PINNED_NOTE_SET, ({ note }) => {
+            setPinnedNote(note)
+        })
+
+        socket.on(SocketEvent.PINNED_NOTE_CLEARED, () => {
+            setPinnedNote(null)
+        })
+
         return () => {
             socket.off(SocketEvent.RECEIVE_MESSAGE)
+            socket.off(SocketEvent.PINNED_NOTE_SET)
+            socket.off(SocketEvent.PINNED_NOTE_CLEARED)
         }
     }, [socket])
 
@@ -47,6 +63,8 @@ function ChatContextProvider({ children }: { children: ReactNode }) {
                 setIsNewMessage,
                 lastScrollHeight,
                 setLastScrollHeight,
+                pinnedNote,
+                setPinnedNote,
             }}
         >
             {children}

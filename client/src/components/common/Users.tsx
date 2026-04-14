@@ -17,16 +17,16 @@ function Users() {
 }
 
 const User = ({ user }: { user: RemoteUser }) => {
-    const { username, status } = user
-    const title = `${username} - ${status === USER_CONNECTION_STATUS.ONLINE ? "online" : "offline"}`
+    const { username, status, currentFile, typing } = user
+    const title = `${username} - ${status === USER_CONNECTION_STATUS.ONLINE ? "online" : "offline"}${currentFile ? ` - editing ${currentFile}` : ""}`
 
     return (
         <div
-            className="relative flex w-[100px] flex-col items-center gap-2"
+            className="relative flex w-[104px] flex-col items-center gap-2 rounded-xl border border-blue-300/20 bg-slate-900/65 px-2 py-3"
             title={title}
         >
             <Avatar name={username} size="50" round={"12px"} title={title} />
-            <p className="line-clamp-2 max-w-full text-ellipsis break-words">
+            <p className="line-clamp-2 max-w-full text-ellipsis break-words text-center text-sm text-slate-200">
                 {username}
             </p>
             <div
@@ -36,6 +36,16 @@ const User = ({ user }: { user: RemoteUser }) => {
                         : "bg-danger"
                 }`}
             ></div>
+            {typing && (
+                <div className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-200">
+                    typing
+                </div>
+            )}
+            {currentFile && (
+                <p className="max-w-full truncate text-center text-[11px] text-slate-400">
+                    {currentFile}
+                </p>
+            )}
         </div>
     )
 }

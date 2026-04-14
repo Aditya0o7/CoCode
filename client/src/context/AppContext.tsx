@@ -2,6 +2,7 @@ import {
     ACTIVITY_STATE,
     AppContext as AppContextType,
     DrawingData,
+    RoomActivity,
 } from "@/types/app"
 import { RemoteUser, USER_STATUS, User } from "@/types/user"
 import { ReactNode, createContext, useContext, useState } from "react"
@@ -29,6 +30,7 @@ function AppContextProvider({ children }: { children: ReactNode }) {
         ACTIVITY_STATE.CODING,
     )
     const [drawingData, setDrawingData] = useState<DrawingData>(null)
+    const [roomActivity, setRoomActivity] = useState<RoomActivity[]>([])
 
     return (
         <AppContext.Provider
@@ -43,6 +45,8 @@ function AppContextProvider({ children }: { children: ReactNode }) {
                 setActivityState,
                 drawingData,
                 setDrawingData,
+                roomActivity,
+                setRoomActivity,
             }}
         >
             {children}

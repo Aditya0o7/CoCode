@@ -3,16 +3,18 @@ import {
     FileContext as FileContextType,
     FileName,
     FileSystemItem,
+    FileVersionEntry,
     Id,
 } from "@/types/file"
 import { SocketEvent } from "@/types/socket"
-import { RemoteUser } from "@/types/user"
+import { RemoteUser, RoomTemplate } from "@/types/user"
 import {
     findParentDirectory,
     getFileById,
     initialFileStructure,
     isFileExist,
 } from "@/utils/file"
+import useLocalStorage from "@/hooks/useLocalStorage"
 import { saveAs } from "file-saver"
 import JSZip from "jszip"
 import {
@@ -21,12 +23,107 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
+    useRef,
     useState,
 } from "react"
 import { toast } from "react-hot-toast"
 import { v4 as uuidv4 } from "uuid"
 import { useAppContext } from "./AppContext"
 import { useSocket } from "./SocketContext"
+
+type RoomSnapshot = {
+    fileStructure: FileSystemItem
+    openFiles: FileSystemItem[]
+    activeFile: FileSystemItem | null
+}
+
+const ROOM_STATE_PREFIX = "cocode-room-state"
+const MAX_VERSION_ENTRIES = 80
+const SNAPSHOT_INTERVAL_MS = 3000
+
+const createFileNode = (name: string, content = ""): FileSystemItem => ({
+    id: uuidv4(),
+    name,
+    type: "file",
+    content,
+})
+
+const createDirectoryNode = (
+    name: string,
+    children: FileSystemItem[] = [],
+): FileSystemItem => ({
+    id: uuidv4(),
+    name,
+    type: "directory",
+    children,
+    isOpen: false,
+})
+
+const getFirstFile = (item: FileSystemItem): FileSystemItem | null => {
+    if (item.type === "file") return item
+    for (const child of item.children || []) {
+        const found = getFirstFile(child)
+        if (found) return found
+    }
+    return null
+}
+
+const buildStarterStructure = (template?: RoomTemplate): FileSystemItem => {
+    if (template === "frontend") {
+        return {
+            id: uuidv4(),
+            name: "root",
+            type: "directory",
+            children: [
+                createDirectoryNode("src", [
+                    createFileNode(
+                        "App.tsx",
+                        "export default function App() {\n    return <h1>Hello CoCode</h1>\n}",
+                    ),
+                    createFileNode(
+                        "main.tsx",
+                        "import React from 'react'\nimport ReactDOM from 'react-dom/client'\nimport App from './App'\n\nReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(\n    <React.StrictMode>\n        <App />\n    </React.StrictMode>,\n)",
+                    ),
+                ]),
+                createFileNode(
+                    "index.html",
+                    '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>CoCode</title>\n  </head>\n  <body>\n    <div id="root"></div>\n  </body>\n</html>',
+                ),
+                createFileNode(
+                    "package.json",
+                    '{\n  "name": "cocode-starter",\n  "private": true,\n  "scripts": {\n    "dev": "vite",\n    "build": "vite build"\n  }\n}',
+                ),
+            ],
+        }
+    }
+
+    if (template === "interview") {
+        return {
+            id: uuidv4(),
+            name: "root",
+            type: "directory",
+            children: [
+                createFileNode(
+                    "problem.md",
+                    "# Interview Prompt\n\nExplain your approach before coding.",
+                ),
+                createFileNode(
+                    "solution.js",
+                    "function solve(input) {\n    // write your solution here\n    return input\n}",
+                ),
+                createFileNode(
+                    "notes.md",
+                    "- Constraints\n- Edge cases\n- Tests",
+                ),
+            ],
+        }
+    }
+
+    return initialFileStructure
+}
+
+const getRoomStorageKey = (roomId: string) => `${ROOM_STATE_PREFIX}:${roomId}`
 
 const FileContext = createContext<FileContextType | null>(null)
 
@@ -40,17 +137,120 @@ export const useFileSystem = (): FileContextType => {
 
 function FileContextProvider({ children }: { children: ReactNode }) {
     const { socket } = useSocket()
-    const { setUsers, drawingData } = useAppContext()
+    const { currentUser, setUsers, drawingData } = useAppContext()
+    const { getItem, setItem } = useLocalStorage()
 
     const [fileStructure, setFileStructure] =
         useState<FileSystemItem>(initialFileStructure)
-    const initialOpenFiles = fileStructure.children
-        ? fileStructure.children
-        : []
-    const [openFiles, setOpenFiles] =
-        useState<FileSystemItem[]>(initialOpenFiles)
-    const [activeFile, setActiveFile] = useState<FileSystemItem | null>(
-        openFiles[0],
+    const [openFiles, setOpenFiles] = useState<FileSystemItem[]>([])
+    const [activeFileState, setActiveFileState] =
+        useState<FileSystemItem | null>(null)
+    const [versionHistory, setVersionHistory] = useState<FileVersionEntry[]>([])
+    const activeFile = activeFileState
+    const hydrationRoomIdRef = useRef<string | null>(null)
+    const fileSnapshotMetaRef = useRef<
+        Record<string, { content: string; at: number }>
+    >({})
+
+    const setActiveFile = useCallback((file: FileSystemItem | null) => {
+        setActiveFileState(file)
+    }, [])
+
+    const roomStorageKey = useMemo(() => {
+        if (!currentUser.roomId) return null
+        return getRoomStorageKey(currentUser.roomId)
+    }, [currentUser.roomId])
+
+    useEffect(() => {
+        if (!currentUser.roomId) return
+
+        if (hydrationRoomIdRef.current === currentUser.roomId) return
+
+        const storedState = roomStorageKey
+            ? (JSON.parse(
+                  getItem(roomStorageKey) || "null",
+              ) as RoomSnapshot | null)
+            : null
+
+        if (storedState?.fileStructure) {
+            setFileStructure(storedState.fileStructure)
+            setOpenFiles(storedState.openFiles || [])
+            setActiveFileState(storedState.activeFile || null)
+            toast.success("Recovered local workspace snapshot")
+        } else {
+            const starterStructure = buildStarterStructure(currentUser.template)
+            setFileStructure(starterStructure)
+
+            const firstFile = getFirstFile(starterStructure)
+            setOpenFiles(firstFile ? [firstFile] : [])
+            setActiveFileState(firstFile)
+        }
+
+        hydrationRoomIdRef.current = currentUser.roomId
+    }, [currentUser.roomId, currentUser.template, getItem, roomStorageKey])
+
+    useEffect(() => {
+        if (!roomStorageKey) return
+        if (hydrationRoomIdRef.current !== currentUser.roomId) return
+
+        const snapshot: RoomSnapshot = {
+            fileStructure,
+            openFiles,
+            activeFile,
+        }
+
+        setItem(roomStorageKey, JSON.stringify(snapshot))
+    }, [
+        activeFile,
+        currentUser.roomId,
+        fileStructure,
+        openFiles,
+        roomStorageKey,
+        setItem,
+    ])
+
+    useEffect(() => {
+        if (!currentUser.roomId) return
+        if (hydrationRoomIdRef.current !== currentUser.roomId) return
+
+        socket.emit(SocketEvent.CURRENT_FILE_CHANGED, {
+            currentFile: activeFile?.name || null,
+        })
+    }, [activeFile?.id, activeFile?.name, currentUser.roomId, socket])
+
+    const saveVersionSnapshot = useCallback(
+        (fileId: string, fileName: string, content: string) => {
+            if (!fileId) return
+
+            const now = Date.now()
+            const previous = fileSnapshotMetaRef.current[fileId]
+
+            if (
+                previous &&
+                previous.content === content &&
+                now - previous.at < SNAPSHOT_INTERVAL_MS
+            ) {
+                return
+            }
+
+            if (previous && now - previous.at < SNAPSHOT_INTERVAL_MS) {
+                return
+            }
+
+            const nextVersion: FileVersionEntry = {
+                id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+                fileId,
+                fileName,
+                content,
+                timestamp: new Date(now).toISOString(),
+            }
+
+            fileSnapshotMetaRef.current[fileId] = { content, at: now }
+            setVersionHistory((prev) =>
+                [nextVersion, ...prev].slice(0, MAX_VERSION_ENTRIES),
+            )
+        },
+        [],
     )
 
     // Function to toggle the isOpen property of a directory (Directory Open/Close)
@@ -180,11 +380,6 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             // Set the active file to null if it's in the directory being updated
             setActiveFile(null)
 
-            if (dirId === fileStructure.id) {
-                toast.dismiss()
-                toast.success("Files and folders updated")
-            }
-
             if (!sendToSocket) return
             socket.emit(SocketEvent.DIRECTORY_UPDATED, {
                 dirId,
@@ -200,6 +395,30 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             newDirName: string,
             sendToSocket: boolean = true,
         ): boolean => {
+            const findDirectoryById = (
+                directory: FileSystemItem,
+                targetId: string,
+            ): FileSystemItem | null => {
+                if (
+                    directory.id === targetId &&
+                    directory.type === "directory"
+                ) {
+                    return directory
+                }
+
+                if (directory.children) {
+                    for (const child of directory.children) {
+                        const found = findDirectoryById(child, targetId)
+                        if (found) return found
+                    }
+                }
+
+                return null
+            }
+
+            const previousDirectory = findDirectoryById(fileStructure, dirId)
+            const oldName = previousDirectory?.name
+
             const renameInDirectory = (
                 directory: FileSystemItem,
             ): FileSystemItem | null => {
@@ -251,7 +470,8 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             if (!sendToSocket) return true
             socket.emit(SocketEvent.DIRECTORY_RENAMED, {
                 dirId,
-                newDirName,
+                newName: newDirName,
+                oldName,
             })
 
             return true
@@ -261,6 +481,30 @@ function FileContextProvider({ children }: { children: ReactNode }) {
 
     const deleteDirectory = useCallback(
         (dirId: string, sendToSocket: boolean = true) => {
+            const findDirectoryById = (
+                directory: FileSystemItem,
+                targetId: string,
+            ): FileSystemItem | null => {
+                if (
+                    directory.id === targetId &&
+                    directory.type === "directory"
+                ) {
+                    return directory
+                }
+
+                if (directory.children) {
+                    for (const child of directory.children) {
+                        const found = findDirectoryById(child, targetId)
+                        if (found) return found
+                    }
+                }
+
+                return null
+            }
+
+            const targetDirectory = findDirectoryById(fileStructure, dirId)
+            const dirName = targetDirectory?.name
+
             const deleteFromDirectory = (
                 directory: FileSystemItem,
             ): FileSystemItem | null => {
@@ -287,9 +531,9 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             )
 
             if (!sendToSocket) return
-            socket.emit(SocketEvent.DIRECTORY_DELETED, { dirId })
+            socket.emit(SocketEvent.DIRECTORY_DELETED, { dirId, dirName })
         },
-        [socket],
+        [fileStructure, socket],
     )
 
     const openFile = (fileId: Id) => {
@@ -412,6 +656,7 @@ function FileContextProvider({ children }: { children: ReactNode }) {
 
             // Set the new file as active file
             setActiveFile(newFile)
+            saveVersionSnapshot(newFile.id, newFile.name, newFile.content || "")
 
             if (!sendToSocket) return newFile.id
             socket.emit(SocketEvent.FILE_CREATED, {
@@ -421,11 +666,16 @@ function FileContextProvider({ children }: { children: ReactNode }) {
 
             return newFile.id
         },
-        [fileStructure, socket],
+        [fileStructure, saveVersionSnapshot, socket],
     )
 
     const updateFileContent = useCallback(
         (fileId: string, newContent: string) => {
+            const targetFile = getFileById(fileStructure, fileId)
+            if (targetFile?.type === "file") {
+                saveVersionSnapshot(fileId, targetFile.name, newContent)
+            }
+
             // Recursive function to find and update the file
             const updateFile = (directory: FileSystemItem): FileSystemItem => {
                 if (directory.type === "file" && directory.id === fileId) {
@@ -467,7 +717,40 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 )
             }
         },
-        [openFiles],
+        [fileStructure, openFiles, saveVersionSnapshot],
+    )
+
+    const getVersionsForFile = useCallback(
+        (fileId: Id) => {
+            return versionHistory.filter((version) => version.fileId === fileId)
+        },
+        [versionHistory],
+    )
+
+    const restoreVersion = useCallback(
+        (versionId: string) => {
+            const selectedVersion = versionHistory.find(
+                (version) => version.id === versionId,
+            )
+            if (!selectedVersion) return
+
+            updateFileContent(selectedVersion.fileId, selectedVersion.content)
+
+            if (activeFile?.id === selectedVersion.fileId) {
+                setActiveFile({
+                    ...activeFile,
+                    content: selectedVersion.content,
+                })
+            }
+
+            socket.emit(SocketEvent.FILE_UPDATED, {
+                fileId: selectedVersion.fileId,
+                newContent: selectedVersion.content,
+            })
+
+            toast.success(`Restored ${selectedVersion.fileName} version`)
+        },
+        [activeFile, socket, updateFileContent, versionHistory],
     )
 
     const renameFile = useCallback(
@@ -476,6 +759,10 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             newName: string,
             sendToSocket: boolean = true,
         ): boolean => {
+            const previousFile = getFileById(fileStructure, fileId)
+            const oldName =
+                previousFile?.type === "file" ? previousFile.name : undefined
+
             const renameInDirectory = (
                 directory: FileSystemItem,
             ): FileSystemItem => {
@@ -518,15 +805,9 @@ function FileContextProvider({ children }: { children: ReactNode }) {
 
             // Update Active File
             if (fileId === activeFile?.id) {
-                setActiveFile((prevActiveFile) => {
-                    if (prevActiveFile) {
-                        return {
-                            ...prevActiveFile,
-                            name: newName,
-                        }
-                    } else {
-                        return null
-                    }
+                setActiveFile({
+                    ...activeFile,
+                    name: newName,
                 })
             }
 
@@ -534,15 +815,20 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             socket.emit(SocketEvent.FILE_RENAMED, {
                 fileId,
                 newName,
+                oldName,
             })
 
             return true
         },
-        [activeFile?.id, socket],
+        [activeFile?.id, fileStructure, socket],
     )
 
     const deleteFile = useCallback(
         (fileId: string, sendToSocket: boolean = true) => {
+            const targetFile = getFileById(fileStructure, fileId)
+            const fileName =
+                targetFile?.type === "file" ? targetFile.name : undefined
+
             // Recursive function to find and delete the file in nested directories
             const deleteFileFromDirectory = (
                 directory: FileSystemItem,
@@ -593,9 +879,9 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             toast.success("File deleted successfully")
 
             if (!sendToSocket) return
-            socket.emit(SocketEvent.FILE_DELETED, { fileId })
+            socket.emit(SocketEvent.FILE_DELETED, { fileId, fileName })
         },
-        [activeFile?.id, openFiles, socket],
+        [activeFile?.id, fileStructure, openFiles, socket],
     )
 
     const downloadFilesAndFolders = () => {
@@ -799,6 +1085,9 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 renameFile,
                 deleteFile,
                 downloadFilesAndFolders,
+                versionHistory,
+                getVersionsForFile,
+                restoreVersion,
             }}
         >
             {children}

@@ -5,6 +5,12 @@ interface ChatMessage {
     timestamp: string
 }
 
+interface PinnedNote {
+    text: string
+    updatedBy: string
+    updatedAt: string
+}
+
 interface ChatContext {
     messages: ChatMessage[]
     setMessages: (
@@ -14,6 +20,8 @@ interface ChatContext {
     setIsNewMessage: (isNewMessage: boolean) => void
     lastScrollHeight: number
     setLastScrollHeight: (lastScrollHeight: number) => void
+    pinnedNote: PinnedNote | null
+    setPinnedNote: (note: PinnedNote | null) => void
 }
 
-export { ChatContext, ChatMessage }
+export { ChatContext, ChatMessage, PinnedNote }

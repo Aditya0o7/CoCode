@@ -10,8 +10,8 @@ import { VIEWS } from "@/types/view"
 import { IoCodeSlash } from "react-icons/io5"
 import { MdOutlineDraw } from "react-icons/md"
 import cn from "classnames"
-import { Tooltip } from 'react-tooltip'
-import { useState } from 'react'
+import { Tooltip } from "react-tooltip"
+import { useState } from "react"
 import { tooltipStyles } from "./tooltipStyles"
 
 function Sidebar() {
@@ -43,10 +43,10 @@ function Sidebar() {
     }
 
     return (
-        <aside className="flex w-full md:h-full md:max-h-full md:min-h-full md:w-auto">
+        <aside className="flex w-full min-w-0 overflow-hidden md:h-full md:max-h-full md:min-h-full md:w-full md:min-w-0">
             <div
                 className={cn(
-                    "fixed bottom-0 left-0 z-50 flex h-[50px] w-full gap-4 self-end overflow-hidden border-t border-blue-950 hover: Hover bg-blue-950 p-2 md:static md:h-full md:w-[50px] md:min-w-[50px] md:flex-col md:border-r md:border-t-0 md:p-2 md:pt-4",
+                    "fixed bottom-0 left-0 z-50 flex h-[56px] w-full items-center gap-4 self-end overflow-visible border-t border-blue-800/70 bg-slate-950/95 p-2 backdrop-blur md:static md:h-full md:w-[58px] md:min-w-[58px] md:flex-col md:border-r md:border-t-0 md:pt-4",
                     {
                         hidden: minHeightReached,
                     },
@@ -55,11 +55,18 @@ function Sidebar() {
                 <SidebarButton
                     viewName={VIEWS.FILES}
                     icon={viewIcons[VIEWS.FILES]}
-                    
                 />
-                 <SidebarButton
-                        viewName={VIEWS.RUN}
-                        icon={viewIcons[VIEWS.RUN]}
+                <SidebarButton
+                    viewName={VIEWS.SEARCH}
+                    icon={viewIcons[VIEWS.SEARCH]}
+                />
+                <SidebarButton
+                    viewName={VIEWS.HISTORY}
+                    icon={viewIcons[VIEWS.HISTORY]}
+                />
+                <SidebarButton
+                    viewName={VIEWS.RUN}
+                    icon={viewIcons[VIEWS.RUN]}
                 />
                 <SidebarButton
                     viewName={VIEWS.COPILOT}
@@ -69,7 +76,11 @@ function Sidebar() {
                     viewName={VIEWS.CHATS}
                     icon={viewIcons[VIEWS.CHATS]}
                 />
-                
+                <SidebarButton
+                    viewName={VIEWS.ACTIVITY}
+                    icon={viewIcons[VIEWS.ACTIVITY]}
+                />
+
                 <SidebarButton
                     viewName={VIEWS.CLIENTS}
                     icon={viewIcons[VIEWS.CLIENTS]}
@@ -82,7 +93,7 @@ function Sidebar() {
                 {/* Button to change activity state coding or drawing */}
                 <div className="flex h-fit items-center justify-center">
                     <button
-                        className="justify-cente flex items-center  rounded p-1.5 transition-colors duration-200 ease-in-out hover:bg-blue-500"
+                        className="flex items-center rounded-xl p-2 transition duration-200 ease-in-out hover:bg-blue-400/25"
                         onClick={changeState}
                         onMouseEnter={() => setShowTooltip(true)}
                         data-tooltip-id="activity-state-tooltip"
@@ -103,7 +114,7 @@ function Sidebar() {
                             id="activity-state-tooltip"
                             place="right"
                             offset={15}
-                            className="!z-50"
+                            className="!z-[9999]"
                             style={tooltipStyles}
                             noArrow={false}
                             positionStrategy="fixed"
@@ -113,7 +124,7 @@ function Sidebar() {
                 </div>
             </div>
             <div
-                className="absolute left-0 top-0 z-20 w-full flex-col bg-blue-950 md:static md:min-w-[300px]"
+                className="absolute left-0 top-0 z-20 w-full min-w-0 overflow-hidden border-r border-blue-700/20 bg-slate-950/85 backdrop-blur md:static md:flex-1"
                 style={isSidebarOpen ? {} : { display: "none" }}
             >
                 {/* Render the active view component */}

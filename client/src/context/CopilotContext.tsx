@@ -1,7 +1,18 @@
 import { ICopilotContext } from "@/types/copilot"
+import { AxiosError } from "axios"
 import { createContext, ReactNode, useContext, useState } from "react"
 import toast from "react-hot-toast"
 import axiosInstance from "../api/pollinationsApi"
+
+interface ChatCompletionChoice {
+    message?: {
+        content?: string | null
+    }
+}
+
+interface PollinationsChatResponse {
+    choices?: ChatCompletionChoice[]
+}
 
 const CopilotContext = createContext<ICopilotContext | null>(null)
 
@@ -28,35 +39,55 @@ const CopilotContextProvider = ({ children }: { children: ReactNode }) => {
                 return
             }
 
+            if (!import.meta.env.VITE_POLLINATIONS_API_KEY) {
+                toast.error("Missing Pollinations API key in env")
+                return
+            }
+
             toast.loading("Generating code...")
             setIsRunning(true)
-            const response = await axiosInstance.post("/", {
-                messages: [
-                    {
-                        role: "system",
-                        content:
-                            "You are a code generator copilot for project named CoCode. Generate code based on the given prompt without any explanation. Return only the code, formatted in Markdown using the appropriate language syntax (e.g., js for JavaScript, py for Python). Do not include any additional text or explanations. If you don't know the answer, respond with 'I don't know'.",
-                    },
-                    {
-                        role: "user",
-                        content: input,
-                    },
-                ],
-                model: "mistral",
-                private: true,
-            })
-            if (response.data) {
+
+            const response = await axiosInstance.post<PollinationsChatResponse>(
+                "/v1/chat/completions",
+                {
+                    model: import.meta.env.VITE_POLLINATIONS_MODEL || "openai",
+                    messages: [
+                        {
+                            role: "system",
+                            content:
+                                "You are a code generator copilot for project named CoCode. Generate code based on the given prompt without any explanation. Return only the code, formatted in Markdown using the appropriate language syntax (e.g., js for JavaScript, py for Python). Do not include any additional text or explanations. If you don't know the answer, respond with 'I don't know'.",
+                        },
+                        {
+                            role: "user",
+                            content: input,
+                        },
+                    ],
+                    stream: false,
+                },
+            )
+
+            const code = response.data?.choices?.[0]?.message?.content?.trim()
+
+            if (code) {
+                setOutput(code)
                 toast.success("Code generated successfully")
-                const code = response.data
-                if (code) setOutput(code)
+            } else {
+                toast.error("No content returned by Pollinations")
             }
+
             setIsRunning(false)
             toast.dismiss()
         } catch (error) {
-            console.error(error)
+            const axiosError = error as AxiosError<{
+                error?: { message?: string }
+            }>
+            console.error(axiosError?.response?.data || error)
             setIsRunning(false)
             toast.dismiss()
-            toast.error("Failed to generate the code")
+            toast.error(
+                axiosError.response?.data?.error?.message ||
+                    "Failed to generate the code",
+            )
         }
     }
 

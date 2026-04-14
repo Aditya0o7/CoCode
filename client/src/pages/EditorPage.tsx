@@ -49,12 +49,13 @@ function EditorPage() {
     }
 
     return (
-        <SplitterComponent>
-            <Sidebar />
-            <WorkSpace/>
-            <Footer/>
-        </SplitterComponent>
-        
+        <>
+            <SplitterComponent>
+                <Sidebar />
+                <WorkSpace />
+            </SplitterComponent>
+            <Footer />
+        </>
     )
 }
 

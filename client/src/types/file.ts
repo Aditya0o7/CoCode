@@ -11,6 +11,14 @@ interface FileSystemItem {
     isOpen?: boolean
 }
 
+interface FileVersionEntry {
+    id: string
+    fileId: string
+    fileName: string
+    content: string
+    timestamp: string
+}
+
 interface FileContext {
     fileStructure: FileSystemItem
     openFiles: FileSystemItem[]
@@ -29,6 +37,16 @@ interface FileContext {
     renameFile: (fileId: Id, newName: FileName) => boolean
     deleteFile: (fileId: Id) => void
     downloadFilesAndFolders: () => void
+    versionHistory: FileVersionEntry[]
+    getVersionsForFile: (fileId: Id) => FileVersionEntry[]
+    restoreVersion: (versionId: string) => void
 }
 
-export { FileSystemItem, FileContent, FileContext, Id, FileName }
+export {
+    FileSystemItem,
+    FileContent,
+    FileContext,
+    FileVersionEntry,
+    Id,
+    FileName,
+}

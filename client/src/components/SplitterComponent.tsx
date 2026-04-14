@@ -5,44 +5,95 @@ import { ReactNode } from "react"
 import Split from "react-split"
 
 function SplitterComponent({ children }: { children: ReactNode }) {
-    const { isSidebarOpen } = useViews()
+    const { isSidebarOpen, setIsSidebarOpen } = useViews()
     const { isMobile, width } = useWindowDimensions()
     const { setItem, getItem } = useLocalStorage()
+    const defaultSizes = [24, 76]
+    const activityRailWidth = 58
+    const collapseThreshold = activityRailWidth + 14
+    const collapsedSidebarPercent =
+        (activityRailWidth / Math.max(width, 1)) * 100
+
+    const getSavedExpandedSizes = () => {
+        const savedSizes = getItem("editorSizesExpanded")
+        if (savedSizes) {
+            return JSON.parse(savedSizes)
+        }
+        return defaultSizes
+    }
 
     const getGutter = () => {
         const gutter = document.createElement("div")
-        gutter.className = "h-full cursor-e-resizer hidden md:block"
-        gutter.style.backgroundColor = "#e1e1ffb3"
+        gutter.className =
+            "hidden h-full cursor-col-resize transition-colors md:block"
+        gutter.style.backgroundColor = "#244468"
+        gutter.addEventListener("mouseenter", () => {
+            gutter.style.backgroundColor = "#4ea6ff"
+        })
+        gutter.addEventListener("mouseleave", () => {
+            gutter.style.backgroundColor = "#244468"
+        })
         return gutter
     }
 
     const getSizes = () => {
-        if (isMobile) return [0, width]
-        const savedSizes = getItem("editorSizes")
-        let sizes = [35, 65]
-        if (savedSizes) {
-            sizes = JSON.parse(savedSizes)
+        if (isMobile) return [0, 100]
+        if (!isSidebarOpen) {
+            return [collapsedSidebarPercent, 100 - collapsedSidebarPercent]
         }
-        return isSidebarOpen ? sizes : [0, width]
+
+        return getSavedExpandedSizes()
     }
 
     const getMinSizes = () => {
         if (isMobile) return [0, width]
-        return isSidebarOpen ? [350, 350] : [50, 0]
+        return [activityRailWidth, 300]
     }
 
     const getMaxSizes = () => {
         if (isMobile) return [0, Infinity]
-        return isSidebarOpen ? [Infinity, Infinity] : [0, Infinity]
+        return [520, Infinity]
     }
 
     const handleGutterDrag = (sizes: number[]) => {
+        if (isMobile) return
+
+        const sidebarWidthPx = (sizes[0] / 100) * width
+
+        if (sidebarWidthPx > collapseThreshold) {
+            if (!isSidebarOpen) {
+                setIsSidebarOpen(true)
+            }
+            setItem("editorSizesExpanded", JSON.stringify(sizes))
+        }
+    }
+
+    const handleGutterDragEnd = (sizes: number[]) => {
+        if (isMobile) return
+
+        const sidebarWidthPx = (sizes[0] / 100) * width
+
+        if (sidebarWidthPx <= collapseThreshold) {
+            setIsSidebarOpen(false)
+            setItem(
+                "editorSizes",
+                JSON.stringify([
+                    collapsedSidebarPercent,
+                    100 - collapsedSidebarPercent,
+                ]),
+            )
+            return
+        }
+
+        setIsSidebarOpen(true)
+        setItem("editorSizesExpanded", JSON.stringify(sizes))
         setItem("editorSizes", JSON.stringify(sizes))
     }
 
     const getGutterStyle = () => ({
-        width: "7px",
-        display: isSidebarOpen && !isMobile ? "block" : "none",
+        width: "8px",
+        boxShadow: "0 0 0 1px rgba(60, 131, 203, 0.35)",
+        display: !isMobile ? "block" : "none",
     })
 
     return (
@@ -58,7 +109,8 @@ function SplitterComponent({ children }: { children: ReactNode }) {
             snapOffset={30}
             gutterStyle={getGutterStyle}
             onDrag={handleGutterDrag}
-            className="flex h-screen min-h-screen max-w-full items-center justify-center overflow-hidden"
+            onDragEnd={handleGutterDragEnd}
+            className="flex h-screen min-h-screen max-w-full overflow-hidden bg-transparent"
         >
             {children}
         </Split>

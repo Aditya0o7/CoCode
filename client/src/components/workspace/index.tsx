@@ -10,7 +10,7 @@ function WorkSpace() {
 
     return (
         <div
-            className="absolute left-0 top-0 w-full max-w-full flex-grow overflow-x-hidden md:static"
+            className="absolute left-0 top-0 w-full max-w-full flex-grow overflow-x-hidden bg-[linear-gradient(180deg,rgba(8,23,39,0.75),rgba(5,15,26,0.98))] md:static"
             style={{ height: viewHeight }}
         >
             {activityState === ACTIVITY_STATE.DRAWING ? (

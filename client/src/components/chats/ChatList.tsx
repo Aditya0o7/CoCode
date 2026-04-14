@@ -10,8 +10,11 @@ function ChatList() {
         lastScrollHeight,
         setLastScrollHeight,
     } = useChatRoom()
-    const { currentUser } = useAppContext()
+    const { currentUser, users } = useAppContext()
     const messagesContainerRef = useRef<HTMLDivElement | null>(null)
+    const typingUsers = users.filter(
+        (user) => user.username !== currentUser.username && user.typing,
+    )
 
     const handleScroll = (e: SyntheticEvent) => {
         const container = e.target as HTMLDivElement
@@ -35,7 +38,7 @@ function ChatList() {
 
     return (
         <div
-            className="flex-grow overflow-auto rounded-md bg-gray-800 Hover p-2"
+            className="flex-grow overflow-auto rounded-xl border border-blue-300/25 bg-slate-900/75 p-3"
             ref={messagesContainerRef}
             onScroll={handleScroll}
         >
@@ -45,24 +48,31 @@ function ChatList() {
                     <div
                         key={index}
                         className={
-                            "mb-2 w-[80%] self-end break-words rounded-md bg-black px-3 py-2" +
+                            "mb-2 w-[82%] self-end break-words rounded-xl border border-blue-300/20 bg-slate-950/80 px-3 py-2" +
                             (message.username === currentUser.username
                                 ? " ml-auto "
                                 : "")
                         }
                     >
                         <div className="flex justify-between">
-                            <span className="text-xs text-blue-500">
+                            <span className="text-xs text-cyan-300">
                                 {message.username}
                             </span>
-                            <span className="text-xs text-white">
+                            <span className="text-xs text-slate-300">
                                 {message.timestamp}
                             </span>
                         </div>
-                        <p className="py-1">{message.message}</p>
+                        <p className="py-1 text-slate-100">{message.message}</p>
                     </div>
                 )
             })}
+            {typingUsers.length > 0 && (
+                <div className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100">
+                    {typingUsers.length === 1
+                        ? `${typingUsers[0].username} is typing...`
+                        : `${typingUsers[0].username} and ${typingUsers.length - 1} more are typing...`}
+                </div>
+            )}
         </div>
     )
 }
