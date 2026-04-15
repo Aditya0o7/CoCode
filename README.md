@@ -1,6 +1,6 @@
 # 💻 CoCode - Code Together
 
-**[🌐 Live Demo](http://cocode-by-auri.onrender.com)**
+**[🌐 Live Demo](https://cocode-dyd7.onrender.com)**
 
 ---
 
